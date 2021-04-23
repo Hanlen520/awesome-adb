@@ -11,6 +11,7 @@ Other languages: [:cn: Chinese](./README.md)
 # ![Table of Contents](./assets/toc.png)
 
 <!-- vim-markdown-toc GFM -->
+
 * [Basic Usage](#basic-usage)
     * [Command syntax](#command-syntax)
     * [Targeting equipment for command](#targeting-equipment-for-command)
@@ -21,6 +22,7 @@ Other languages: [:cn: Chinese](./README.md)
 * [Device connection management](#device-connection-management)
     * [Inquiries connected device / simulator](#inquiries-connected-device--simulator)
     * [USB connection](#usb-connection)
+    * [Wireless connection (Android11+)](#wireless-connection-android11)
     * [Wireless connection (need to use the USB cable)](#wireless-connection-need-to-use-the-usb-cable)
     * [Wireless connection (without using the USB cable)](#wireless-connection-without-using-the-usb-cable)
 * [Application Management](#application-management)
@@ -34,11 +36,15 @@ Other languages: [:cn: Chinese](./README.md)
     * [Clear app cache data](#clear-app-cache-data)
     * [View Reception Activity](#view-reception-activity)
     * [View Running Services](#view-running-services)
+    * [Query package detail information](#query-package-detail-information)
+    * [Query application installation path](#query-application-installation-path)
 * [Interact with Applications](#interact-with-applications)
-    * [Start an Activity](#start-an-activity)
+    * [Launch app / Start an Activity](#launch-app--start-an-activity)
     * [Start a Service](#start-a-service)
+    * [Stop service](#stop-service)
     * [Send a broadcast](#send-a-broadcast)
     * [Force stop an application](#force-stop-an-application)
+    * [Trim memory](#trim-memory)
 * [File Management](#file-management)
     * [Copy files from a device to a computer](#copy-files-from-a-device-to-a-computer)
     * [Copy files from a computer to a device](#copy-files-from-a-computer-to-a-device)
@@ -78,6 +84,7 @@ Other languages: [:cn: Chinese](./README.md)
     * [Screen density](#screen-density-1)
     * [Overscan](#overscan)
     * [Turn off Android Debug](#turn-off-android-debug)
+    * [allow/forbidden access non SDK API](#allowforbidden-access-non-sdk-api)
     * [Show/hide status bar or navigation bar](#showhide-status-bar-or-navigation-bar)
 * [Utility functions](#utility-functions)
     * [Screenshots](#screenshots)
@@ -89,18 +96,24 @@ Other languages: [:cn: Chinese](./README.md)
     * [Detect whether the device is root](#detect-whether-the-device-is-root)
     * [Monkey use stress testing](#monkey-use-stress-testing)
     * [On / off WiFi](#on--off-wifi)
-* [Brush related commands](#brush-related-commands)
+* [Flashing-Phone related commands](#flashing-phone-related-commands)
     * [Restart to Recovery mode](#restart-to-recovery-mode)
     * [To restart from the Recovery Android](#to-restart-from-the-recovery-android)
     * [Restart to Fastboot mode](#restart-to-fastboot-mode)
     * [Through sideload system update](#through-sideload-system-update)
+* [Security-related commands](#security-related-commands)
+    * [Enable / Disable SELinux](#enable--disable-selinux)
+    * [Enable / Disable dm_verity](#enable--disable-dm_verity)
 * [More adb shell command](#more-adb-shell-command)
     * [See process](#see-process)
     * [View real-time resource consumption](#view-real-time-resource-consumption)
+    * [query process uid](#query-process-uid)
     * [Other](#other)
 * [common problem](#common-problem)
     * [Start adb server failure](#start-adb-server-failure)
+    * [com.android.ddmlib.AdbCommandRejectedException](#comandroidddmlibadbcommandrejectedexception)
 * [adb unofficial implementation](#adb-unofficial-implementation)
+* [related commands](#related-commands)
 * [Acknowledgements](#acknowledgements)
 * [Reference Links](#reference-links)
 
@@ -286,6 +299,38 @@ Developer Options 2. Android devices and USB debugging mode is on.
 
    Description Connection successful.
 
+### Wireless connection (Android11+)
+
+[Doc in Android developers](https://developer.android.com/studio/command-line/adb#connect-to-a-device-over-wi-fi-android-11+)
+
+Android 11 and higher support deploying and debugging your app wirelessly from your workstation using Android Debug Bridge (adb). For example, you can deploy your debuggable app to multiple remote devices without physically connecting your device via USB. This eliminates the need to deal with common USB connection issues, such as driver installation.
+
+To use wireless debugging, you need to pair your device to your workstation using a pairing code. Your workstation and device must be connected to the same wireless network. To connect to your device, follow these steps:
+
+1. Update to the latest version of the [SDK Platform-Tools](https://developer.android.com/studio/releases/platform-tools).
+
+2. Connect Android device to run adb computer connected to the same local area network, such as connected to the same WiFi.
+
+3. Enable the **Wireless debugging** option.
+
+4. On the dialog that asks **Allow wireless debugging on this network?**, click **Allow**.
+
+5. Select **Pair device with pairing code**. Take note of the pairing code, IP address, and port number displayed on the device.
+
+6. On your workstation, open a terminal and navigate to `android_sdk/platform-tools`.
+
+7. Run `adb pair ipaddr:port`. Use the IP address and port number from step 5.
+
+8. When prompted, enter the pairing code that you received in step 5. A message indicates that your device has been successfully paired.
+
+  ```sh
+  none
+  Enter pairing code: xxxxxx
+  Successfully paired to ...
+  ```
+
+9. (For Linux or Microsoft Windows only) Run `adb connect ipaddr:port`. Use the IP address and port under **Wireless debugging**.
+
 ### Wireless connection (need to use the USB cable)
 
 In addition to the USB connection to the computer to use adb, can also be a wireless connection - although the connection process is also step using USB needs, but after a successful connection to your device can get rid of the limit of the USB cable within a certain range it !
@@ -389,8 +434,8 @@ Since we want to achieve a wireless connection, it can all step down are wireles
    if `restart` is not working, try following command:
 
    ```sh
-   start adbd
    stop adbd
+   start adbd
    ```
 
 ## Application Management
@@ -522,59 +567,61 @@ Failure [INSTALL_FAILED_ALREADY_EXISTS]
 
 Common Installation failed output code, the meaning and possible solutions are as follows:
 
-| Output                                             | Meaning                                                                                                                                       | solutions                                                                    |
-|----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|
-| INSTALL\_FAILED\_ALREADY\_EXISTS                   | application already exists                                                                                                                    | use `-r` parameters                                                          |
-| INSTALL\_FAILED\_INVALID\_APK                      | invalid APK file                                                                                                                              |                                                                              |
-| INSTALL\_FAILED\_INVALID\_URI                      | invalid filename APK                                                                                                                          | APK file names to ensure no Chinese                                          |
-| INSTALL\_FAILED\_INSUFFICIENT\_STORAGE             | lack of space                                                                                                                                 | cleanup space                                                                |
-| INSTALL\_FAILED\_DUPLICATE\_PACKAGE                | program of the same name already exists                                                                                                       |                                                                              |
-| INSTALL\_FAILED\_NO\_SHARED\_USER                  | shared user requested does not exist                                                                                                          |                                                                              |
-| INSTALL\_FAILED\_UPDATE\_INCOMPATIBLE              | already installed signature is not the same application with the same name, and the data is not removed                                       |                                                                              |
-| INSTALL\_FAILED\_SHARED\_USER\_INCOMPATIBLE        | shared user request exists but the signatures do not match                                                                                    |                                                                              |
-| INSTALL\_FAILED\_MISSING\_SHARED\_LIBRARY          | installation package used on the device unusable shared library                                                                               |                                                                              |
-| INSTALL\_FAILED\_REPLACE\_COULDNT\_DELETE          | can not be deleted when replacing                                                                                                             |                                                                              |
-| INSTALL\_FAILED\_DEXOPT                            | dex optimization validation failure or lack of space                                                                                          |                                                                              |
-| INSTALL\_FAILED\_OLDER\_SDK                        | equipment system version is lower than the application requirements                                                                           |                                                                              |
-| INSTALL\_FAILED\_CONFLICTING\_PROVIDER             | equipment already exists with the same name in application content provider                                                                   |                                                                              |
-| INSTALL\_FAILED\_NEWER\_SDK                        | equipment system version higher than the application requirements                                                                             |                                                                              |
-| INSTALL\_FAILED\_TEST\_ONLY                        | test-only applications, but when you install `-t` parameter is not specified                                                                  |                                                                              |
-| INSTALL\_FAILED\_CPU\_ABI\_INCOMPATIBLE            | contains incompatible device CPU Application Binary Interface for native code                                                                 |                                                                              |
-| INSTALL\_FAILED\_MISSING\_FEATURE                  | application uses device features that are unavailable                                                                                         |                                                                              |
-| INSTALL\_FAILED\_CONTAINER\_ERROR                  | sdcard access failure                                                                                                                         | confirm sdcard is available, or to install built-in storage                  |
-| INSTALL\_FAILED\_INVALID\_INSTALL\_LOCATION        | can not be installed to the specified location                                                                                                | switch mounting position, add or delete `-s` parameters                      |
-| INSTALL\_FAILED\_MEDIA\_UNAVAILABLE                | installation location is unavailable                                                                                                          | generally sdcard, confirm sdcard is available or to install built-in storage |
-| INSTALL\_FAILED\_VERIFICATION\_TIMEOUT             | Installation Timeout verify                                                                                                                   |                                                                              |
-| INSTALL\_FAILED\_VERIFICATION\_FAILURE             | verify the installation package fails                                                                                                         |                                                                              |
-| INSTALL\_FAILED\_PACKAGE\_CHANGED                  | calling application program expects inconsistent                                                                                              |                                                                              |
-| INSTALL\_FAILED\_UID\_CHANGED                      | previously installed the app, and this assignment UID inconsistent                                                                            | remove residual files previously installed                                   |
-| INSTALL\_FAILED\_VERSION\_DOWNGRADE                | already installed the application later                                                                                                       | use `-d` parameters                                                          |
-| INSTALL\_FAILED\_PERMISSION\_MODEL\_DOWNGRADE      | installed target SDK runtime support for application permissions of the same name, to install the runtime version does not support permission |                                                                              |
-| INSTALL\_PARSE\_FAILED\_NOT\_APK                   | specified path is not a file or not to `.apk` end                                                                                             |                                                                              |
-| INSTALL\_PARSE\_FAILED\_BAD\_MANIFEST              | unresolved AndroidManifest.xml file                                                                                                           |                                                                              |
-| INSTALL\_PARSE\_FAILED\_UNEXPECTED\_EXCEPTION      | parser encounters an exception                                                                                                                |                                                                              |
-| INSTALL\_PARSE\_FAILED\_NO\_CERTIFICATES           | installation package is not signed                                                                                                            |                                                                              |
-| INSTALL\_PARSE\_FAILED\_INCONSISTENT\_CERTIFICATES | already installed the app, and signed with the APK files are inconsistent                                                                     | first uninstall the application on the device, then install                  |
-| INSTALL\_PARSE\_FAILED\_CERTIFICATE\_ENCODING      | encountered while parsing APK file `CertificateEncodingException`                                                                             |                                                                              |
-| INSTALL\_PARSE\_FAILED\_BAD\_PACKAGE\_NAME         | manifest file no or an invalid package name                                                                                                   |                                                                              |
-| INSTALL\_PARSE\_FAILED\_BAD\_SHARED\_USER\_ID      | manifest file specifies an invalid shared user ID                                                                                             |                                                                              |
-| INSTALL\_PARSE\_FAILED\_MANIFEST\_MALFORMED        | encountered while parsing file manifest error structural                                                                                      |                                                                              |
-| INSTALL\_PARSE\_FAILED\_MANIFEST\_EMPTY            | in the manifest file can not be found to find operable label (instrumentation or application)                                                 |                                                                              |
-| INSTALL\_FAILED\_INTERNAL\_ERROR                   | installation fails because of system problems                                                                                                 |                                                                              |
-| INSTALL\_FAILED\_USER\_RESTRICTED                  | Users are limited to installing applications                                                                                                  |                                                                              |
-| INSTALL\_FAILED\_DUPLICATE\_PERMISSION             | application attempts to define an existing permission name                                                                                    |                                                                              |
-| INSTALL\_FAILED\_NO\_MATCHING\_ABIS                | applications include device application binary interface does not support the native code                                                     |                                                                              |
-| INSTALL\_CANCELED\_BY\_USER                        | applications installed on the device needs confirmation, but not operate the device or the point of cancellation                              | agree to install on the device                                               |
-| INSTALL\_FAILED\_ACWF\_INCOMPATIBLE                | applications are not compatible with the device                                                                                               |                                                                              |
-| Does not contain AndroidManifest.xml               | invalid APK file                                                                                                                              |                                                                              |
-| Is not a valid zip file                            | invalid APK file                                                                                                                              |                                                                              |
-| Offline                                            | device is not connected successfully                                                                                                          | first device with adb successful connection                                  |
-| Unauthorized                                       | unauthorized device allows debugging                                                                                                          |                                                                              |
-| Error: device not found                            | not successfully connected equipment                                                                                                          | equipment and adb first successful connection                                |
-| Protocol failure                                   | device is disconnected                                                                                                                        | first device with adb successful connection                                  |
-| Unknown option: -s                                 | Android 2.2 does not support the following installation to sdcard                                                                             | do not use `-s` parameters                                                   |
-| No space left on devicerm                          | lack of space                                                                                                                                 | cleanup space                                                                |
-| Permission denied ... sdcard ...                   | sdcard unavailable                                                                                                                            |                                                                              |
+| Output                                                              | Meaning                                                                                                                                       | solutions                                                                                      |
+|---------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| INSTALL\_FAILED\_ALREADY\_EXISTS                                    | application already exists                                                                                                                    | use `-r` parameters                                                                            |
+| INSTALL\_FAILED\_INVALID\_APK                                       | invalid APK file                                                                                                                              |                                                                                                |
+| INSTALL\_FAILED\_INVALID\_URI                                       | invalid filename APK                                                                                                                          | APK file names to ensure no Chinese                                                            |
+| INSTALL\_FAILED\_INSUFFICIENT\_STORAGE                              | lack of space                                                                                                                                 | cleanup space                                                                                  |
+| INSTALL\_FAILED\_DUPLICATE\_PACKAGE                                 | program of the same name already exists                                                                                                       |                                                                                                |
+| INSTALL\_FAILED\_NO\_SHARED\_USER                                   | shared user requested does not exist                                                                                                          |                                                                                                |
+| INSTALL\_FAILED\_UPDATE\_INCOMPATIBLE                               | already installed the app, but signature is not the same; or uninstalled, but data is not removed.                                            |                                                                                                |
+| INSTALL\_FAILED\_SHARED\_USER\_INCOMPATIBLE                         | shared user request exists but the signatures do not match                                                                                    |                                                                                                |
+| INSTALL\_FAILED\_MISSING\_SHARED\_LIBRARY                           | installation package used on the device unusable shared library                                                                               |                                                                                                |
+| INSTALL\_FAILED\_REPLACE\_COULDNT\_DELETE                           | can not be deleted when replacing                                                                                                             |                                                                                                |
+| INSTALL\_FAILED\_DEXOPT                                             | dex optimization validation failure or lack of space                                                                                          |                                                                                                |
+| INSTALL\_FAILED\_OLDER\_SDK                                         | equipment system version is lower than the application requirements                                                                           |                                                                                                |
+| INSTALL\_FAILED\_CONFLICTING\_PROVIDER                              | equipment already exists with the same name in application content provider                                                                   |                                                                                                |
+| INSTALL\_FAILED\_NEWER\_SDK                                         | equipment system version higher than the application requirements                                                                             |                                                                                                |
+| INSTALL\_FAILED\_TEST\_ONLY                                         | test-only applications, but when you install `-t` parameter is not specified                                                                  |                                                                                                |
+| INSTALL\_FAILED\_CPU\_ABI\_INCOMPATIBLE                             | contains incompatible device CPU Application Binary Interface for native code                                                                 |                                                                                                |
+| INSTALL\_FAILED\_MISSING\_FEATURE                                   | application uses device features that are unavailable                                                                                         |                                                                                                |
+| INSTALL\_FAILED\_CONTAINER\_ERROR                                   | sdcard access failure                                                                                                                         | confirm sdcard is available, or to install built-in storage                                    |
+| INSTALL\_FAILED\_INVALID\_INSTALL\_LOCATION                         | can not be installed to the specified location                                                                                                | switch mounting position, add or delete `-s` parameters                                        |
+| INSTALL\_FAILED\_MEDIA\_UNAVAILABLE                                 | installation location is unavailable                                                                                                          | generally sdcard, confirm sdcard is available or to install built-in storage                   |
+| INSTALL\_FAILED\_VERIFICATION\_TIMEOUT                              | Installation Timeout verify                                                                                                                   |                                                                                                |
+| INSTALL\_FAILED\_VERIFICATION\_FAILURE                              | verify the installation package fails                                                                                                         |                                                                                                |
+| INSTALL\_FAILED\_PACKAGE\_CHANGED                                   | calling application program expects inconsistent                                                                                              |                                                                                                |
+| INSTALL\_FAILED\_UID\_CHANGED                                       | previously installed the app, and this assignment UID inconsistent                                                                            | remove residual files previously installed                                                     |
+| INSTALL\_FAILED\_VERSION\_DOWNGRADE                                 | already installed the application later                                                                                                       | use `-d` parameters                                                                            |
+| INSTALL\_FAILED\_PERMISSION\_MODEL\_DOWNGRADE                       | installed target SDK runtime support for application permissions of the same name, to install the runtime version does not support permission |                                                                                                |
+| INSTALL\_PARSE\_FAILED\_NOT\_APK                                    | specified path is not a file or not to `.apk` end                                                                                             |                                                                                                |
+| INSTALL\_PARSE\_FAILED\_BAD\_MANIFEST                               | unresolved AndroidManifest.xml file                                                                                                           |                                                                                                |
+| INSTALL\_PARSE\_FAILED\_UNEXPECTED\_EXCEPTION                       | parser encounters an exception                                                                                                                |                                                                                                |
+| INSTALL\_PARSE\_FAILED\_NO\_CERTIFICATES                            | installation package is not signed                                                                                                            |                                                                                                |
+| INSTALL\_PARSE\_FAILED\_INCONSISTENT\_CERTIFICATES                  | already installed the app, and signed with the APK files are inconsistent                                                                     | first uninstall the application on the device, then install                                    |
+| INSTALL\_PARSE\_FAILED\_CERTIFICATE\_ENCODING                       | encountered while parsing APK file `CertificateEncodingException`                                                                             |                                                                                                |
+| INSTALL\_PARSE\_FAILED\_BAD\_PACKAGE\_NAME                          | manifest file no or an invalid package name                                                                                                   |                                                                                                |
+| INSTALL\_PARSE\_FAILED\_BAD\_SHARED\_USER\_ID                       | manifest file specifies an invalid shared user ID                                                                                             |                                                                                                |
+| INSTALL\_PARSE\_FAILED\_MANIFEST\_MALFORMED                         | encountered while parsing file manifest error structural                                                                                      |                                                                                                |
+| INSTALL\_PARSE\_FAILED\_MANIFEST\_EMPTY                             | in the manifest file can not be found to find operable label (instrumentation or application)                                                 |                                                                                                |
+| INSTALL\_FAILED\_INTERNAL\_ERROR                                    | installation fails because of system problems                                                                                                 |                                                                                                |
+| INSTALL\_FAILED\_USER\_RESTRICTED                                   | Users are limited to installing applications                                                                                                  | open options 'install app via USB' in developer options, if it was opened, close and reopen it |
+| INSTALL\_FAILED\_DUPLICATE\_PERMISSION                              | application attempts to define an existing permission name                                                                                    |                                                                                                |
+| INSTALL\_FAILED\_NO\_MATCHING\_ABIS                                 | applications include device application binary interface does not support the native code                                                     |                                                                                                |
+| INSTALL\_CANCELED\_BY\_USER                                         | applications installed on the device needs confirmation, but not operate the device or the point of cancellation                              | agree to install on the device                                                                 |
+| INSTALL\_FAILED\_ACWF\_INCOMPATIBLE                                 | applications are not compatible with the device                                                                                               |                                                                                                |
+| INSTALL_FAILED_TEST_ONLY                                            | APK file is build via Android Studio 'RUN'                                                                                                    | Rebuild via Gradle assembleDebug or assembleRelease, or Generate Signed APK                    |
+| Does not contain AndroidManifest.xml                                | invalid APK file                                                                                                                              |                                                                                                |
+| Is not a valid zip file                                             | invalid APK file                                                                                                                              |                                                                                                |
+| Offline                                                             | device is not connected successfully                                                                                                          | first device with adb successful connection                                                    |
+| Unauthorized                                                        | unauthorized device allows debugging                                                                                                          |                                                                                                |
+| Error: device not found                                             | not successfully connected equipment                                                                                                          | equipment and adb first successful connection                                                  |
+| Protocol failure                                                    | device is disconnected                                                                                                                        | first device with adb successful connection                                                    |
+| Unknown option: -s                                                  | Android 2.2 does not support the following installation to sdcard                                                                             | do not use `-s` parameters                                                                     |
+| No space left on device                                             | lack of space                                                                                                                                 | cleanup space                                                                                  |
+| Permission denied ... sdcard ...                                    | sdcard unavailable                                                                                                                            |                                                                                                |
+| signatures do not match the previously installed version; ignoring! | already installed this app, but signatures do not match                                                                                       | uninstall previous installed, then install this one                                            |
 
 Reference: [PackageManager.java](https://github.com/android/platform_frameworks_base/blob/master/core%2Fjava%2Fandroid%2Fcontent%2Fpm%2FPackageManager.java)
 
@@ -631,16 +678,18 @@ adb shell pm clear com.qihoo360.mobilesafe
 command:
 
 ```sh
-adb shell dumpsys activity activities | grep mFocusedActivity
+adb shell dumpsys activity activities | grep mResumedActivity
 ```
 
 Example output:
 
 ```sh
-mFocusedActivity: ActivityRecord{8079d7e u0 com.cyanogenmod.trebuchet/com.android.launcher3.Launcher t42}
+mResumedActivity: ActivityRecord{8079d7e u0 com.cyanogenmod.trebuchet/com.android.launcher3.Launcher t42}
 ```
 
 Where `com.cyanogenmod.trebuchet / com.android.launcher3.Launcher` is currently in the foreground Activity.
+
+*The command above may not valid in Windows, you can try `adb shell dumpsys activity activities | findstr mResumedActivity` or `adb shell "dumpsys activity activities | grep mResumedActivity"`.
 
 ### View Running Services
 
@@ -654,9 +703,121 @@ adb shell dumpsys activity services [<packagename>]
 
 Complete packagename is unnecessary. For example, `adb shell dumpsys activity services org.mazhuang` will output services related with `org.mazhuang.demo1`, `org.mazhuang.demo2` and `org.mazhuang123`, etc.
 
+### Query package detail information
+
+command:
+
+```sh
+adb shell dumpsys package <packagename>
+```
+
+There are many infos in output, include Activity Resolver Table, Registered ContentProviders, package name, userId, files/resources/codes path after install, version name and code, permissions info and their granted status, signing version, etc.
+
+`<packagename>` is package name of an application.
+
+Example output:
+
+```sh
+Activity Resolver Table:
+  Non-Data Actions:
+      android.intent.action.MAIN:
+        5b4cba8 org.mazhuang.guanggoo/.SplashActivity filter 5ec9dcc
+          Action: "android.intent.action.MAIN"
+          Category: "android.intent.category.LAUNCHER"
+          AutoVerify=false
+
+Registered ContentProviders:
+  org.mazhuang.guanggoo/com.tencent.bugly.beta.utils.BuglyFileProvider:
+    Provider{7a3c394 org.mazhuang.guanggoo/com.tencent.bugly.beta.utils.BuglyFileProvider}
+
+ContentProvider Authorities:
+  [org.mazhuang.guanggoo.fileProvider]:
+    Provider{7a3c394 org.mazhuang.guanggoo/com.tencent.bugly.beta.utils.BuglyFileProvider}
+      applicationInfo=ApplicationInfo{7754242 org.mazhuang.guanggoo}
+
+Key Set Manager:
+  [org.mazhuang.guanggoo]
+      Signing KeySets: 501
+
+Packages:
+  Package [org.mazhuang.guanggoo] (c1d7f):
+    userId=10394
+    pkg=Package{55f714c org.mazhuang.guanggoo}
+    codePath=/data/app/org.mazhuang.guanggoo-2
+    resourcePath=/data/app/org.mazhuang.guanggoo-2
+    legacyNativeLibraryDir=/data/app/org.mazhuang.guanggoo-2/lib
+    primaryCpuAbi=null
+    secondaryCpuAbi=null
+    versionCode=74 minSdk=15 targetSdk=25
+    versionName=1.1.74
+    splits=[base]
+    apkSigningVersion=2
+    applicationInfo=ApplicationInfo{7754242 org.mazhuang.guanggoo}
+    flags=[ HAS_CODE ALLOW_CLEAR_USER_DATA ALLOW_BACKUP ]
+    privateFlags=[ RESIZEABLE_ACTIVITIES ]
+    dataDir=/data/user/0/org.mazhuang.guanggoo
+    supportsScreens=[small, medium, large, xlarge, resizeable, anyDensity]
+    timeStamp=2017-10-22 23:50:53
+    firstInstallTime=2017-10-22 23:50:25
+    lastUpdateTime=2017-10-22 23:50:55
+    installerPackageName=com.miui.packageinstaller
+    signatures=PackageSignatures{af09595 [53c7caa2]}
+    installPermissionsFixed=true installStatus=1
+    pkgFlags=[ HAS_CODE ALLOW_CLEAR_USER_DATA ALLOW_BACKUP ]
+    requested permissions:
+      android.permission.READ_PHONE_STATE
+      android.permission.INTERNET
+      android.permission.ACCESS_NETWORK_STATE
+      android.permission.ACCESS_WIFI_STATE
+      android.permission.READ_LOGS
+      android.permission.WRITE_EXTERNAL_STORAGE
+      android.permission.READ_EXTERNAL_STORAGE
+    install permissions:
+      android.permission.INTERNET: granted=true
+      android.permission.ACCESS_NETWORK_STATE: granted=true
+      android.permission.ACCESS_WIFI_STATE: granted=true
+    User 0: ceDataInode=1155675 installed=true hidden=false suspended=false stopped=true notLaunched=false enabled=0
+      gids=[3003]
+      runtime permissions:
+        android.permission.READ_EXTERNAL_STORAGE: granted=true
+        android.permission.READ_PHONE_STATE: granted=true
+        android.permission.WRITE_EXTERNAL_STORAGE: granted=true
+    User 999: ceDataInode=0 installed=false hidden=false suspended=false stopped=true notLaunched=true enabled=0
+      gids=[3003]
+      runtime permissions:
+
+
+Dexopt state:
+  [org.mazhuang.guanggoo]
+    Instruction Set: arm64
+      path: /data/app/org.mazhuang.guanggoo-2/base.apk
+      status: /data/app/org.mazhuang.guanggoo-2/oat/arm64/base.odex [compilation_filter=speed-profile, status=kOatUpToDa
+      te]
+```
+
+### Query application installation path
+
+command:
+
+```
+adb shell pm path <PACKAGE>
+```
+
+Output shows application installation path.
+
+
+
+Example output:
+
+```
+adb shell pm path ecarx.weather
+
+package:/data/app/ecarx.weather-1.apk
+```
+
 ## Interact with Applications
 
-The most used syntax for interacting with applications is : 
+The most used syntax for interacting with applications is :
 ```sh
 am <command>
 ```
@@ -694,7 +855,8 @@ There are some options addting data for `<INTENT>`, similar to `extra` for Bundl
 | `--eia <EXTRA_KEY> <EXTRA_INT_VALUE> [, <EXTRA_INT_VALUE ...]`   | integer array                          |
 | `--ela <EXTRA_KEY> <EXTRA_LONG_VALUE> [, <EXTRA_LONG_VALUE ...]` | long array                             |
 
-### Start an Activity
+### Launch app / Start an Activity
+> start with Activity's name
 
 The syntax is:
 
@@ -716,6 +878,21 @@ adb shell am start -n org.mazhuang.boottimemeasure/.MainActivity --es "toast" "h
 
 The command above means starting MainActivity of the application with the package name `org.mazhuang.boottimemeasure` with an extra string information (key is 'toast' and value is 'hello, world').
 
+> start without Activity's name
+
+The syntax is:
+
+```sh
+adb shell monkey -p <packagename> -c android.intent.category.LAUNCHER 1
+```
+For example:
+
+```sh
+adb shell monkey -p com.tencent.mm -c android.intent.category.LAUNCHER 1
+```
+
+The command above means starting the launch activity of WeChat.
+
 ### Start a Service
 
 The syntax is:
@@ -731,6 +908,20 @@ adb shell am startservice -n com.tencent.mm/.plugin.accountsync.model.AccountAut
 ```
 
 The command above means starting a service from WeChat.
+
+Another typical useage is that if devices has bottom virtual keys but not show, you can try this:
+
+```sh
+adb shell am startservice -n com.android.systemui/.SystemUIService
+```
+
+### Stop service
+
+The syntax is:
+
+```sh
+adb shell am stopservice [options] <INTENT>
+```
 
 ### Send a broadcast
 
@@ -758,30 +949,30 @@ The command of issuing a broadcast intent is very useful in the test, especially
 
 Both system predefined and custom broadcast intent are able to be sent. The following is part of the system predefined broadcast intents and the triggers:
 
-| Action                                          | Trigger                                                     |
-|-------------------------------------------------|--------------------------------------------------------------------|
-| android.net.conn.CONNECTIVITY_CHANGE            | network connectivity changes                                                         |
-| android.intent.action.SCREEN_ON                 | screen on                                                         |
-| android.intent.action.SCREEN_OFF                | screen off                                                         |
-| android.intent.action.BATTERY_LOW               | low battery, corresponding to the "Low battery warning" system dialog                    |
-| android.intent.action.BATTERY_OKAY              | the battery is now okay after being low                                               |
-| android.intent.action.BOOT_COMPLETED            | device boot finished                                                   |
-| android.intent.action.DEVICE_STORAGE_LOW        | low memory condition on the device                                       |
-| android.intent.action.DEVICE_STORAGE_OK         | low memory condition on the device no longer exists                                           |
-| android.intent.action.PACKAGE_ADDED             | a new application has been installed                                       |
-| android.net.wifi.STATE_CHANGE                   | WiFi connection status changed                                      |
-| android.net.wifi.WIFI_STATE_CHANGED             | Wi-Fi has been enabled, disabled, enabling, disabling, or unknown |
-| android.intent.action.BATTERY_CHANGED           | battery level changed                                              |
-| android.intent.action.INPUT_METHOD_CHANGED      | system input method changed                                        |
-| android.intent.action.ACTION_POWER_CONNECTED    | external power connected to the device                                           |
-| android.intent.action.ACTION_POWER_DISCONNECTED | external power removed from the device                                   |
-| android.intent.action.DREAMING_STARTED          | system starts dreaming                                                 |
+| Action                                          | Trigger                                                               |
+|-------------------------------------------------|-----------------------------------------------------------------------|
+| android.net.conn.CONNECTIVITY_CHANGE            | network connectivity changes                                          |
+| android.intent.action.SCREEN_ON                 | screen on                                                             |
+| android.intent.action.SCREEN_OFF                | screen off                                                            |
+| android.intent.action.BATTERY_LOW               | low battery, corresponding to the "Low battery warning" system dialog |
+| android.intent.action.BATTERY_OKAY              | the battery is now okay after being low                               |
+| android.intent.action.BOOT_COMPLETED            | device boot finished                                                  |
+| android.intent.action.DEVICE_STORAGE_LOW        | low memory condition on the device                                    |
+| android.intent.action.DEVICE_STORAGE_OK         | low memory condition on the device no longer exists                   |
+| android.intent.action.PACKAGE_ADDED             | a new application has been installed                                  |
+| android.net.wifi.STATE_CHANGE                   | WiFi connection status changed                                        |
+| android.net.wifi.WIFI_STATE_CHANGED             | Wi-Fi has been enabled, disabled, enabling, disabling, or unknown     |
+| android.intent.action.BATTERY_CHANGED           | battery level changed                                                 |
+| android.intent.action.INPUT_METHOD_CHANGED      | system input method changed                                           |
+| android.intent.action.ACTION_POWER_CONNECTED    | external power connected to the device                                |
+| android.intent.action.ACTION_POWER_DISCONNECTED | external power removed from the device                                |
+| android.intent.action.DREAMING_STARTED          | system starts dreaming                                                |
 | android.intent.action.DREAMING_STOPPED          | system stops dreaming                                                 |
-| android.intent.action.WALLPAPER_CHANGED         | wallpaper changeed                                                  |
-| android.intent.action.HEADSET_PLUG              | wired headset plugged in or unplugged                                                    |
-| android.intent.action.MEDIA_UNMOUNTED           | external media is present, but not mounted at its mount point                                              |
-| android.intent.action.MEDIA_MOUNTED             | external media is present and mounted at its mount point                                               |
-| android.os.action.POWER_SAVE_MODE_CHANGED       | power-saving mode changed                                   |
+| android.intent.action.WALLPAPER_CHANGED         | wallpaper changeed                                                    |
+| android.intent.action.HEADSET_PLUG              | wired headset plugged in or unplugged                                 |
+| android.intent.action.MEDIA_UNMOUNTED           | external media is present, but not mounted at its mount point         |
+| android.intent.action.MEDIA_MOUNTED             | external media is present and mounted at its mount point              |
+| android.os.action.POWER_SAVE_MODE_CHANGED       | power-saving mode changed                                             |
 
 *(Above broadcast intents are all available to be sent via adb commands)*
 
@@ -800,6 +991,25 @@ adb shell am force-stop com.qihoo360.mobilesafe
 ```
 
 The command above means stopping all processes and services related to the package name `com.qihoo360.mobilesafe`.
+
+### Trim memory
+
+command:
+
+```sh
+adb shell am send-trim-memory  <pid> <level>
+```
+
+pid: process id
+level: HIDDEN、RUNNING_MODERATE、BACKGROUND、RUNNING_LOW、MODERATE、RUNNING_CRITICAL、COMPLETE
+
+For example:
+
+```sh
+adb shell am send-trim-memory 12345 RUNNING_LOW
+```
+
+means send command to process 12345, notify it to set level to RUNNING.
 
 ## File Management
 
@@ -1702,6 +1912,33 @@ So just do it on device manually:
 
 "Settings" - "Developer options" - "Android Debug".
 
+### allow/forbidden access non SDK API
+
+allow access non SDK API:
+
+```sh
+adb shell settings put global hidden_api_policy_pre_p_apps 1
+adb shell settings put global hidden_api_policy_p_apps 1
+```
+
+forbidden access non SDK API:
+
+```sh
+adb shell settings delete global hidden_api_policy_pre_p_apps
+adb shell settings delete global hidden_api_policy_p_apps
+```
+
+*Note: Commands above don't need root privileges.*
+
+meaning for number in command tail:
+
+| value | meaning                                                                                                                                                            |
+|-------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 0     | disable detect for non SDK API call. In this situation, there is no call log in logcat, and make strict mode API, detectNonSdkApiUsage() invalid. Not recommended. |
+| 1     | Just warning -- allow access all non SDK API, but retain warning in logcat. You can continue to use strick mode API.                                               |
+| 2     | It is forbidden to invoke interfaces in dark grey lists and black lists.                                                                                           |
+| 3     | It is forbidden to invoke the interface in the black list, but it is allowed to call the interface in the dark grey list.                                          |
+
 ### Show/hide status bar or navigation bar
 
 Settings in this section correspond with "Expanded desktop" in Cyanogenmod.
@@ -1920,6 +2157,25 @@ network={
 
 `Ssid` we shall see in the WLAN settings in the name,` psk` the password, `key_mgmt` security encryption.
 
+
+If android version is above O, the path of config file should be in `WifiConfigStore.xml`.
+
+```sh
+adb shell
+su
+cat /data/misc/wifi/WifiConfigStore.xml
+```
+
+Example output:
+
+> because of too many items in the file, it can be focused on `ConfigKey`-- WiFi name and `PreSharedKey` -- WiFi password.
+
+```xml
+<string name="ConfigKey">&quot;Wi-Fi&quot;WPA_PSK</string>
+<string name="PreSharedKey">&quot;931907334&quot;</string>
+```
+
+
 ### To set the system date and time
 
 ** Note: You need root privileges. **
@@ -1989,7 +2245,7 @@ adb shell svc wifi disable
 
 If successfully implemented, the output is empty; if not get root privileges to execute this command will fail, output `Killed`.
 
-## Brush related commands
+## Flashing-Phone related commands
 
 ### Restart to Recovery mode
 
@@ -2040,6 +2296,40 @@ Case in Recovery Mode Update:
    ```sh
    adb sideload <path-to-update.zip>
    ```
+
+## Security-related commands
+
+### Enable / Disable SELinux
+
+Enable SELinux
+
+```sh
+adb root
+adb shell setenforce 1
+```
+
+Disable SELinux
+
+```sh
+adb root
+adb shell setenforce 0
+```
+
+### Enable / Disable dm_verity
+
+Enable dm_verity
+
+```sh
+adb root
+adb enable-verity
+```
+
+Disable dm_verity
+
+```sh
+adb root
+adb disable-verity
+```
 
 ## More adb shell command
 
@@ -2129,6 +2419,32 @@ Usage: top [ -m max_procs ] [ -n iterations ] [ -d delay ] [ -s sort_column ] [ 
     -h displays help documentation
 ```
 
+### query process uid
+
+There are two methods:
+
+1. `adb shell dumpsys package <packagename> | grep userId=`
+
+   For example:
+
+   ```sh
+   $ adb shell dumpsys package org.mazhuang.guanggoo | grep userId=
+      userId=10394
+   ```
+
+2. Get pid by `ps` first, then `adb shell cat /proc/<pid>/status | grep Uid`
+
+   For example:
+
+   ```sh
+   $ adb shell
+   gemini:/ $ ps | grep org.mazhuang.guanggoo
+   u0_a394   28635 770   1795812 78736 SyS_epoll_ 0000000000 S org.mazhuang.guanggoo
+   gemini:/ $ cat /proc/28635/status | grep Uid
+   Uid:    10394   10394   10394   10394
+   gemini:/ $
+   ```
+
 ### Other
 
 The following is a brief description of other commonly used commands, has previously spoken commands no special additional explanation:
@@ -2182,15 +2498,39 @@ taskkill /PID 1548
 
 Then start adb no problem.
 
+### com.android.ddmlib.AdbCommandRejectedException
+
+Create a new emulator in Android Studio, but cannot connect with adb, output is:
+
+```
+com.android.ddmlib.AdbCommandRejectedException: device unauthorized.
+This adb server's $ADB_VENDOR_KEYS is not set
+Try 'adb kill-server' if that seems wrong.
+Otherwise check for a confirmation dialog on your device.
+```
+
+After install a terminal app in emulator and run `su` command, it shows no su program, that is not normal.
+
+So just delete the emulator and re-download, reinstall, all is well now.
+
 ## adb unofficial implementation
 
 * [fb-adb](https://github.com/facebook/fb-adb) - A better shell for Android devices (for Mac).
+
+## related commands
+
+* [aapt](./related/aapt.md)
+* [am](./related/am.md)
+* [dumsys](./related/dumpsys.md)
+* [pm](./related/pm.md)
+* [uiautomator](./related/uiautomator.md)
 
 ## Acknowledgements
 
 Thanks friends for theirs selfless sharing and supplement. Names listed in no particular order.
 
-[zxning](https://github.com/zxning), [linhua55](https://github.com/linhua55), [codeskyblue](https://github.com/codeskyblue), [seasonyuu](https://github.com/seasonyuu), [fan123199](https://github.com/fan123199), [zhEdward](https://github.com/zhEdward), [0x8BADFOOD](https://github.com/0x8BADFOOD), [keith666666](https://github.com/keith666666).
+[zxning](https://github.com/zxning), [linhua55](https://github.com/linhua55), [codeskyblue](https://github.com/codeskyblue), [seasonyuu](https://github.com/seasonyuu), [fan123199](https://github.com/fan123199), [zhEdward](https://github.com/zhEdward), [0x8BADFOOD](https://github.com/0x8BADFOOD), [keith666666](https://github.com/keith666666), [shawnlinboy](https://github.com/shawnlinboy), [s-xq](https://github.com/s-xq),
+[lucky9322](https://github.com/lucky9322).
 
 ## Reference Links
 
